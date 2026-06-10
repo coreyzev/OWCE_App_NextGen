@@ -4,8 +4,6 @@ using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using OWCE.Contracts;
 using OWCE.Messages;
-using OWCE.Services;
-
 namespace OWCE.ViewModels;
 
 /// <summary>
@@ -17,7 +15,7 @@ public sealed partial class BoardListViewModel : BaseViewModel,
     IRecipient<HandshakeErrorMessage>
 {
     private readonly IBLEService _bleService;
-    private readonly BoardConnectionService _connectionService;
+    private readonly IBoardConnectionService _connectionService;
     private CancellationTokenSource? _scanCts;
     private CancellationTokenSource? _connectCts;
 
@@ -35,7 +33,7 @@ public sealed partial class BoardListViewModel : BaseViewModel,
 
     public ObservableCollection<DiscoveredBoardViewModel> DiscoveredBoards { get; } = new();
 
-    public BoardListViewModel(IBLEService bleService, BoardConnectionService connectionService)
+    public BoardListViewModel(IBLEService bleService, IBoardConnectionService connectionService)
     {
         _bleService = bleService;
         _connectionService = connectionService;

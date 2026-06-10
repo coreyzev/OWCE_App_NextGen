@@ -22,6 +22,39 @@ namespace OWCE.Contracts
         GTS   // Polaris 6215 — hardware revision range 8000–8999
     }
 
+    // ── BLE UUID Constants ────────────────────────────────────────────────────
+    // All well-known Onewheel BLE characteristic UUIDs.
+    // Centralised here in Contracts so no service implementation needs to import
+    // another service's type to reference a UUID. (Fixes code review finding #3.)
+
+    public static class BLEUuids
+    {
+        public const string SerialNumber       = "E659F301-EA98-11E3-AC10-0800200C9A66";
+        public const string Rpm                = "E659F302-EA98-11E3-AC10-0800200C9A66";
+        public const string BatteryPercent     = "E659F303-EA98-11E3-AC10-0800200C9A66";
+        public const string Temperature        = "E659F304-EA98-11E3-AC10-0800200C9A66";
+        public const string TripOdometer       = "E659F305-EA98-11E3-AC10-0800200C9A66";
+        public const string LightMode          = "E659F306-EA98-11E3-AC10-0800200C9A66";
+        public const string LightsFront        = "E659F307-EA98-11E3-AC10-0800200C9A66";
+        public const string LightsBack         = "E659F308-EA98-11E3-AC10-0800200C9A66";
+        public const string RideMode           = "E659F30C-EA98-11E3-AC10-0800200C9A66";
+        public const string BatterySerial      = "E659F30D-EA98-11E3-AC10-0800200C9A66";
+        public const string BatteryTemperature = "E659F30E-EA98-11E3-AC10-0800200C9A66";
+        public const string CurrentAmps        = "E659F312-EA98-11E3-AC10-0800200C9A66";
+        public const string TripAmpHours       = "E659F313-EA98-11E3-AC10-0800200C9A66";
+        public const string TripRegenAmpHours  = "E659F314-EA98-11E3-AC10-0800200C9A66";
+        public const string BatteryVoltage     = "E659F315-EA98-11E3-AC10-0800200C9A66";
+        public const string SafetyHeadroom     = "E659F317-EA98-11E3-AC10-0800200C9A66";
+        public const string HardwareRevision   = "E659F318-EA98-11E3-AC10-0800200C9A66";
+        public const string FirmwareRevision   = "E659F311-EA98-11E3-AC10-0800200C9A66";
+        public const string LifetimeOdometer   = "E659F319-EA98-11E3-AC10-0800200C9A66";
+        public const string LifetimeAmpHours   = "E659F31A-EA98-11E3-AC10-0800200C9A66";
+        public const string BatteryCells       = "E659F31B-EA98-11E3-AC10-0800200C9A66";
+        public const string SerialRead         = "E659F31C-EA98-11E3-AC10-0800200C9A66";
+        public const string SerialWrite        = "E659F31D-EA98-11E3-AC10-0800200C9A66";
+        public const string SimpleStop         = "E659F31E-EA98-11E3-AC10-0800200C9A66";
+    }
+
     // ── Shared Data Models ────────────────────────────────────────────────────
 
     /// <summary>
@@ -147,22 +180,47 @@ namespace OWCE.Contracts
 
     /// <summary>
     /// Manages the BLE handshake protocol for boards that require authentication.
-    /// Supports V1/Plus/XR (Gemini), Pint/PintX/GT, and GT-S (Polaris 6215).
+    /// Supports V1/Plus/XR (no handshake), Pint/PintX/GT (Gemini), and GT-S (Polaris 6215).
+    ///
+    /// Keep-alive is fully self-managed internally after PerformHandshakeAsync completes.
+    /// Callers MUST NOT invoke keep-alive externally. (Fixes code review finding #5.)
     /// </summary>
     public interface IHandshakeService
     {
         Task PerformHandshakeAsync(OWBoardType boardType, int firmwareRevision, CancellationToken cancellationToken);
-        Task KeepAliveAsync(CancellationToken cancellationToken);
+        // NOTE: KeepAliveAsync is intentionally NOT on this interface.
+        // The GT-S 15-second keep-alive is managed internally by the implementation
+        // via an injected IDispatcher timer. Exposing it publicly caused ambiguity
+        // about ownership and risked double-firing. See ADR-002.
+    }
+
+    /// <summary>
+    /// Orchestrates the full board connection lifecycle:
+    /// BLE connect → identify → handshake → subscribe → telemetry.
+    /// ViewModels depend on this interface, not the concrete class. (Fixes finding #2.)
+    /// </summary>
+    public interface IBoardConnectionService
+    {
+        Task ConnectAsync(string deviceId, CancellationToken cancellationToken);
+        Task DisconnectAsync();
     }
 
     /// <summary>
     /// Records ride sessions and persists them to SQLite.
+    /// EstimatedRangeMiles is computed here, not in the ViewModel. (Fixes finding #7.)
     /// </summary>
     public interface IRideService
     {
         RideSession? CurrentRide { get; }
         bool IsRecording { get; }
         float TopSpeedThisRide { get; }
+
+        /// <summary>
+        /// Simple linear range estimate based on battery percentage and board type.
+        /// Exposed here so ViewModels and the watch sync payload can use it without
+        /// duplicating the board-type lookup table.
+        /// </summary>
+        float EstimateRangeMiles(OWBoardType boardType, int batteryPercent);
 
         Task StartRideAsync(string boardSerial, OWBoardType boardType, CancellationToken cancellationToken);
         Task EndRideAsync();
@@ -174,10 +232,14 @@ namespace OWCE.Contracts
 
     /// <summary>
     /// Pushes live ride data to the paired smartwatch (iOS: WCSession, Android: DataClient).
-    /// Platform implementations live in OWCE.App/Services/Platform/.
+    /// Platform implementations live in OWCE.App/Platforms/{iOS,Android}/Services/.
+    /// Registered via platform-specific MauiProgram partial files.
     /// </summary>
     public interface IWatchSyncService
     {
+        /// <summary>Whether a watch is currently paired and reachable.</summary>
+        bool IsWatchReachable { get; }
+
         Task InitializeAsync();
         Task SyncAsync(WatchPayload payload, CancellationToken cancellationToken);
     }

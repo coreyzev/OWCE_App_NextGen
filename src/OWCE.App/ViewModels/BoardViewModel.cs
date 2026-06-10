@@ -3,7 +3,6 @@ using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using OWCE.Contracts;
 using OWCE.Messages;
-using OWCE.Services;
 
 namespace OWCE.ViewModels;
 
@@ -13,6 +12,7 @@ namespace OWCE.ViewModels;
 /// Subscribes to IBoardStateService.StateUpdated and IRideService events.
 /// Pushes WatchPayload to IWatchSyncService at 1 Hz via a throttle timer.
 /// All unit conversions (mph → km/h, °C → °F) happen here, not in the service layer.
+/// Range estimation is delegated to IRideService.EstimateRangeMiles (not computed here).
 /// </summary>
 public sealed partial class BoardViewModel : BaseViewModel,
     IRecipient<BoardDisconnectedMessage>,
@@ -21,8 +21,9 @@ public sealed partial class BoardViewModel : BaseViewModel,
     private readonly IBoardStateService _boardState;
     private readonly IRideService _rideService;
     private readonly IAppSettingsService _settings;
-    private readonly BoardConnectionService _connectionService;
+    private readonly IBoardConnectionService _connectionService;
     private readonly IWatchSyncService? _watchSync;
+    private readonly IDispatcher _dispatcher;
     private IDispatcherTimer? _watchSyncTimer;
 
     // ── Live Telemetry ────────────────────────────────────────────────────────
@@ -44,6 +45,7 @@ public sealed partial class BoardViewModel : BaseViewModel,
     [ObservableProperty] private string _boardName = string.Empty;
     [ObservableProperty] private string _speedUnit = "MPH";
     [ObservableProperty] private string _tempUnit = "°F";
+    [ObservableProperty] private float _estimatedRangeMiles;
 
     // ── Ride State ────────────────────────────────────────────────────────────
     [ObservableProperty]
@@ -56,13 +58,15 @@ public sealed partial class BoardViewModel : BaseViewModel,
         IBoardStateService boardState,
         IRideService rideService,
         IAppSettingsService settings,
-        BoardConnectionService connectionService,
+        IBoardConnectionService connectionService,
+        IDispatcher dispatcher,
         IWatchSyncService? watchSync = null)
     {
         _boardState = boardState;
         _rideService = rideService;
         _settings = settings;
         _connectionService = connectionService;
+        _dispatcher = dispatcher;
         _watchSync = watchSync;
 
         _boardState.StateUpdated += OnStateUpdated;
@@ -123,10 +127,7 @@ public sealed partial class BoardViewModel : BaseViewModel,
     [RelayCommand]
     private async Task SetLightModeAsync(bool enabled)
     {
-        // Write light mode to the board via BLE
-        // The BLE write is handled through BoardConnectionService → IBLEService
-        // Light mode: 0 = off, 1 = on
-        // TODO: Phase 5 — wire up to IBLEService.WriteCharacteristicAsync
+        // TODO: Phase 5 — wire up to IBLEService.WriteCharacteristicAsync via IBoardConnectionService
         await Task.CompletedTask;
     }
 
@@ -156,6 +157,10 @@ public sealed partial class BoardViewModel : BaseViewModel,
             MotorTemp = _settings.TempUnit == TempUnit.Fahrenheit
                 ? (state.MotorTempC * 9f / 5f) + 32f
                 : state.MotorTempC;
+
+            // Range estimation delegated to IRideService (not computed in ViewModel)
+            EstimatedRangeMiles = _rideService.EstimateRangeMiles(
+                state.BoardType, state.BatteryPercent);
 
             LightMode = state.LightMode;
             FrontLightMode = state.FrontLightMode;
@@ -200,9 +205,10 @@ public sealed partial class BoardViewModel : BaseViewModel,
 
     private void StartWatchSyncTimer()
     {
-        MainThread.BeginInvokeOnMainThread(() =>
+        // Use injected IDispatcher — never Application.Current (Rule 3)
+        _dispatcher.Dispatch(() =>
         {
-            _watchSyncTimer = Application.Current!.Dispatcher.CreateTimer();
+            _watchSyncTimer = _dispatcher.CreateTimer();
             _watchSyncTimer.Interval = TimeSpan.FromSeconds(1);
             _watchSyncTimer.Tick += async (_, _) => await SyncWatchAsync();
             _watchSyncTimer.Start();
@@ -213,14 +219,15 @@ public sealed partial class BoardViewModel : BaseViewModel,
     {
         if (_watchSync is null || _boardState.CurrentState is null) return;
 
+        var state = _boardState.CurrentState;
         var payload = new WatchPayload
         {
-            CurrentSpeedMph    = _boardState.CurrentState.SpeedMph,
-            TopSpeedMph        = _rideService.TopSpeedThisRide,
-            BatteryPercent     = _boardState.CurrentState.BatteryPercent,
-            EstimatedRangeMiles = EstimateRange(_boardState.CurrentState),
-            SpeedUnit          = _settings.SpeedUnit,
-            IsRiding           = _rideService.IsRecording,
+            CurrentSpeedMph     = state.SpeedMph,
+            TopSpeedMph         = _rideService.TopSpeedThisRide,
+            BatteryPercent      = state.BatteryPercent,
+            EstimatedRangeMiles = _rideService.EstimateRangeMiles(state.BoardType, state.BatteryPercent),
+            SpeedUnit           = _settings.SpeedUnit,
+            IsRiding            = _rideService.IsRecording,
         };
 
         try
@@ -231,25 +238,5 @@ public sealed partial class BoardViewModel : BaseViewModel,
         {
             // Watch sync is non-critical — swallow errors silently
         }
-    }
-
-    /// <summary>
-    /// Simple linear range estimate based on battery percentage and board type.
-    /// A more accurate model would use trip amp-hours and current voltage.
-    /// </summary>
-    private static float EstimateRange(BoardState state)
-    {
-        float maxRangeMiles = state.BoardType switch
-        {
-            OWBoardType.XR    => 18f,
-            OWBoardType.GT    => 20f,
-            OWBoardType.GTS   => 20f,
-            OWBoardType.PintX => 12f,
-            OWBoardType.Pint  => 8f,
-            OWBoardType.Plus  => 7f,
-            OWBoardType.V1    => 6f,
-            _                 => 10f,
-        };
-        return maxRangeMiles * (state.BatteryPercent / 100f);
     }
 }

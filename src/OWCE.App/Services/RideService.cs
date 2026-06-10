@@ -16,6 +16,7 @@ namespace OWCE.Services;
 public sealed class RideService : IRideService, IAsyncDisposable
 {
     private readonly IBoardStateService _boardState;
+    private readonly IDispatcher _dispatcher;
     private SQLiteAsyncConnection? _db;
     private readonly SemaphoreSlim _dbLock = new(1, 1);
 
@@ -34,9 +35,10 @@ public sealed class RideService : IRideService, IAsyncDisposable
 
     public event EventHandler<RideSession>? RideEnded;
 
-    public RideService(IBoardStateService boardState)
+    public RideService(IBoardStateService boardState, IDispatcher dispatcher)
     {
         _boardState = boardState;
+        _dispatcher = dispatcher;
         _boardState.StateUpdated += OnStateUpdated;
     }
 
@@ -61,7 +63,10 @@ public sealed class RideService : IRideService, IAsyncDisposable
         }
     }
 
-    public async Task StartRideAsync(string boardSerial, OWBoardType boardType, CancellationToken cancellationToken)
+    public async Task StartRideAsync(
+        string boardSerial,
+        OWBoardType boardType,
+        CancellationToken cancellationToken)
     {
         await EnsureDbAsync();
 
@@ -84,10 +89,10 @@ public sealed class RideService : IRideService, IAsyncDisposable
 
         await _db!.InsertAsync(_currentRideEntity);
 
-        // Start the 1-Hz data point sampling timer on the main thread
-        MainThread.BeginInvokeOnMainThread(() =>
+        // Start the 1-Hz data point sampling timer via injected IDispatcher (not Application.Current)
+        _dispatcher.Dispatch(() =>
         {
-            _sampleTimer = Application.Current!.Dispatcher.CreateTimer();
+            _sampleTimer = _dispatcher.CreateTimer();
             _sampleTimer.Interval = TimeSpan.FromSeconds(1);
             _sampleTimer.Tick += OnSampleTimerTick;
             _sampleTimer.Start();
@@ -141,6 +146,27 @@ public sealed class RideService : IRideService, IAsyncDisposable
         return max;
     }
 
+    /// <summary>
+    /// Simple linear range estimate based on battery percentage and board type.
+    /// Lives here (not in the ViewModel) so it can be tested and reused by watch sync.
+    /// A more accurate model would use trip amp-hours and current voltage.
+    /// </summary>
+    public float EstimateRangeMiles(OWBoardType boardType, int batteryPercent)
+    {
+        float maxRangeMiles = boardType switch
+        {
+            OWBoardType.XR    => 18f,
+            OWBoardType.GT    => 20f,
+            OWBoardType.GTS   => 20f,
+            OWBoardType.PintX => 12f,
+            OWBoardType.Pint  => 8f,
+            OWBoardType.Plus  => 7f,
+            OWBoardType.V1    => 6f,
+            _                 => 10f,
+        };
+        return maxRangeMiles * (batteryPercent / 100f);
+    }
+
     private void OnStateUpdated(object? sender, BoardState state)
     {
         if (_currentRideEntity is null) return;
@@ -174,8 +200,8 @@ public sealed class RideService : IRideService, IAsyncDisposable
             var location = await Geolocation.Default.GetLastKnownLocationAsync();
             if (location != null)
             {
-                dataPoint.LatitudeDeg   = location.Latitude;
-                dataPoint.LongitudeDeg  = location.Longitude;
+                dataPoint.LatitudeDeg    = location.Latitude;
+                dataPoint.LongitudeDeg   = location.Longitude;
                 dataPoint.AltitudeMeters = location.Altitude;
             }
         }

@@ -7,31 +7,34 @@ namespace OWCE.Platforms.Android.Services;
 /// Android phone-side Wearable DataClient implementation of IWatchSyncService.
 /// Sends live telemetry to the paired Wear OS watch via DataClient.PutDataItem.
 ///
-/// Uses the Wearable Data Layer API (Google Play Services Wearable).
-/// The watch app reads the data item via a WearableListenerService.
+/// DataClient is obtained once in InitializeAsync and cached — not recreated on
+/// every SyncAsync call. (Fixes code review finding #9.)
 ///
-/// Registered in DI only on Android via the platform-specific MauiProgram partial.
+/// Registered in DI only on Android via Platforms/Android/MauiProgram.Android.cs.
 /// </summary>
 public sealed class WatchSyncService : IWatchSyncService
 {
     private const string WearDataPath = "/owce/telemetry";
-    private bool _initialized;
+    private IDataClient? _dataClient;
 
-    public bool IsWatchReachable => true; // DataClient is fire-and-forget; always attempt
+    // DataClient is fire-and-forget; if the watch is not connected the item
+    // is queued and delivered when it reconnects. Always returns true.
+    public bool IsWatchReachable => _dataClient != null;
 
     public Task InitializeAsync()
     {
-        _initialized = true;
+        if (_dataClient != null) return Task.CompletedTask;
+
+        var context = Android.App.Application.Context;
+        _dataClient = WearableClass.GetDataClient(context);
+
         System.Diagnostics.Debug.WriteLine("[OWCE Watch] Android WatchSyncService initialized.");
         return Task.CompletedTask;
     }
 
     public async Task SyncAsync(WatchPayload payload, CancellationToken cancellationToken)
     {
-        if (!_initialized) return;
-
-        var context = Android.App.Application.Context;
-        var dataClient = WearableClass.GetDataClient(context);
+        if (_dataClient is null) return;
 
         var request = PutDataMapRequest.Create(WearDataPath);
         var dataMap = request.DataMap;
@@ -42,7 +45,7 @@ public sealed class WatchSyncService : IWatchSyncService
         dataMap.PutFloat("range",    payload.EstimatedRangeMiles);
         dataMap.PutString("unit",    payload.SpeedUnit == SpeedUnit.Mph ? "mph" : "km/h");
         dataMap.PutBoolean("riding", payload.IsRiding);
-        // Timestamp ensures the data item is always treated as new
+        // Timestamp ensures the data item is always treated as new (forces DATA_CHANGED)
         dataMap.PutLong("ts", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
 
         var putRequest = request.AsPutDataRequest();
@@ -50,7 +53,7 @@ public sealed class WatchSyncService : IWatchSyncService
 
         try
         {
-            await dataClient.PutDataItemAsync(putRequest);
+            await _dataClient.PutDataItemAsync(putRequest);
         }
         catch (Exception ex)
         {

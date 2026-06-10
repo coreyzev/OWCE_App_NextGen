@@ -12,10 +12,13 @@ namespace OWCE.Services;
 /// 4. Subscribe to all telemetry characteristics
 /// 5. Start pushing state updates to IBoardStateService
 ///
-/// This class replaces the sprawling connection logic that was scattered
-/// across OWBoard.cs, App.xaml.cs, and the platform BLE implementations.
+/// Implements IBoardConnectionService so ViewModels depend on the interface,
+/// not this concrete class. (Fixes code review finding #2.)
+///
+/// UUID constants come from BLEUuids in OWCE.Contracts, not from BoardStateService.
+/// (Fixes code review finding #3.)
 /// </summary>
-public sealed class BoardConnectionService : IDisposable
+public sealed class BoardConnectionService : IBoardConnectionService, IDisposable
 {
     private readonly IBLEService _bleService;
     private readonly IBoardStateService _boardState;
@@ -25,29 +28,29 @@ public sealed class BoardConnectionService : IDisposable
     // Characteristics to subscribe to for live telemetry (ordered by priority)
     private static readonly string[] TelemetrySubscriptions =
     [
-        BoardStateService.RpmUuid,
-        BoardStateService.BatteryPercentUuid,
-        BoardStateService.BatteryVoltageUuid,
-        BoardStateService.TemperatureUuid,
-        BoardStateService.BatteryTemperatureUuid,
-        BoardStateService.TripOdometerUuid,
-        BoardStateService.CurrentAmpsUuid,
-        BoardStateService.TripAmpHoursUuid,
-        BoardStateService.TripRegenAmpHoursUuid,
-        BoardStateService.RideModeUuid,
-        BoardStateService.LightModeUuid,
-        BoardStateService.LightsFrontUuid,
-        BoardStateService.LightsBackUuid,
-        BoardStateService.SimpleStopUuid,
+        BLEUuids.Rpm,
+        BLEUuids.BatteryPercent,
+        BLEUuids.BatteryVoltage,
+        BLEUuids.Temperature,
+        BLEUuids.BatteryTemperature,
+        BLEUuids.TripOdometer,
+        BLEUuids.CurrentAmps,
+        BLEUuids.TripAmpHours,
+        BLEUuids.TripRegenAmpHours,
+        BLEUuids.RideMode,
+        BLEUuids.LightMode,
+        BLEUuids.LightsFront,
+        BLEUuids.LightsBack,
+        BLEUuids.SimpleStop,
     ];
 
     // Characteristics to read once on connect (static board info)
     private static readonly string[] StaticReads =
     [
-        BoardStateService.HardwareRevisionUuid,
-        BoardStateService.FirmwareRevisionUuid,
-        BoardStateService.SerialNumberUuid,
-        BoardStateService.LifetimeOdometerUuid,
+        BLEUuids.HardwareRevision,
+        BLEUuids.FirmwareRevision,
+        BLEUuids.SerialNumber,
+        BLEUuids.LifetimeOdometer,
     ];
 
     public BoardConnectionService(
@@ -91,7 +94,7 @@ public sealed class BoardConnectionService : IDisposable
         var boardType = _boardState.CurrentState?.BoardType ?? OWBoardType.Unknown;
         var firmwareRevision = _boardState.CurrentState?.FirmwareRevision ?? 0;
 
-        // Perform handshake if required
+        // Perform handshake if required (keep-alive is self-managed inside HandshakeService)
         await _handshake.PerformHandshakeAsync(boardType, firmwareRevision, cancellationToken);
 
         // Subscribe to live telemetry

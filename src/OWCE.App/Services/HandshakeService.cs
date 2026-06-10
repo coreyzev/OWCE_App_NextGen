@@ -1,6 +1,4 @@
 using System.Net.Http.Json;
-using System.Security.Cryptography;
-using System.Text;
 using OWCE.Contracts;
 
 namespace OWCE.Services;
@@ -13,18 +11,20 @@ namespace OWCE.Services;
 /// - Pint / Pint X / GT: OWCE API-assisted challenge-response (Rewheel patch required for GT).
 /// - GT-S (Polaris 6215): Static 20-byte token + 15-second keep-alive.
 ///
+/// Keep-alive is fully self-managed internally via IDispatcher (injected).
+/// KeepAliveAsync is NOT on IHandshakeService — callers must not call it externally.
 /// See ADR-002 for full context.
 /// </summary>
 public sealed class HandshakeService : IHandshakeService, IDisposable
 {
     private readonly IBLEService _bleService;
     private readonly HttpClient _httpClient;
+    private readonly IDispatcher _dispatcher;
     private IDispatcherTimer? _keepAliveTimer;
-    private OWBoardType _activeHandshakeType;
     private bool _disposed;
 
     // GT-S Polaris 6215 static token (community-documented, issue #121)
-    // This is a 20-byte token written to SerialWriteUuid to unlock the board.
+    // This is a 20-byte token written to SerialWrite UUID to unlock the board.
     private static readonly byte[] GtsStaticToken =
     [
         0x43, 0x52, 0x58, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -32,19 +32,21 @@ public sealed class HandshakeService : IHandshakeService, IDisposable
         0x00, 0x00, 0x00, 0x00
     ];
 
-    // OWCE API base URL for Pint/PintX/GT challenge-response
-    private const string OwceApiBase = "https://api.owce.app";
-
-    public HandshakeService(IBLEService bleService, IHttpClientFactory httpClientFactory)
+    public HandshakeService(
+        IBLEService bleService,
+        IHttpClientFactory httpClientFactory,
+        IDispatcher dispatcher)
     {
         _bleService = bleService;
         _httpClient = httpClientFactory.CreateClient("owce");
+        _dispatcher = dispatcher;
     }
 
-    public async Task PerformHandshakeAsync(OWBoardType boardType, int firmwareRevision, CancellationToken cancellationToken)
+    public async Task PerformHandshakeAsync(
+        OWBoardType boardType,
+        int firmwareRevision,
+        CancellationToken cancellationToken)
     {
-        _activeHandshakeType = boardType;
-
         switch (boardType)
         {
             case OWBoardType.V1:
@@ -69,21 +71,9 @@ public sealed class HandshakeService : IHandshakeService, IDisposable
                 break;
 
             default:
-                throw new NotSupportedException($"Board type {boardType} does not have a known handshake strategy.");
+                throw new NotSupportedException(
+                    $"Board type {boardType} does not have a known handshake strategy.");
         }
-    }
-
-    public async Task KeepAliveAsync(CancellationToken cancellationToken)
-    {
-        if (_activeHandshakeType == OWBoardType.GTS)
-        {
-            // GT-S requires the token to be re-sent every 15 seconds
-            await _bleService.WriteCharacteristicAsync(
-                BoardStateService.SerialWriteUuid,
-                GtsStaticToken,
-                cancellationToken);
-        }
-        // Other board types do not require a keep-alive
     }
 
     /// <summary>
@@ -93,9 +83,9 @@ public sealed class HandshakeService : IHandshakeService, IDisposable
     /// </summary>
     private async Task PerformGeminiHandshakeAsync(CancellationToken cancellationToken)
     {
-        // Step 1: Read the challenge bytes from SerialReadUuid
+        // Step 1: Read the challenge bytes from SerialRead UUID
         var challenge = await _bleService.ReadCharacteristicAsync(
-            BoardStateService.SerialReadUuid, cancellationToken);
+            BLEUuids.SerialRead, cancellationToken);
 
         if (challenge is null || challenge.Length == 0)
             throw new HandshakeException("Board did not provide a handshake challenge.");
@@ -105,7 +95,8 @@ public sealed class HandshakeService : IHandshakeService, IDisposable
         HttpResponseMessage response;
         try
         {
-            response = await _httpClient.PostAsJsonAsync($"{OwceApiBase}/handshake", requestBody, cancellationToken);
+            response = await _httpClient.PostAsJsonAsync(
+                "/handshake", requestBody, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -115,36 +106,48 @@ public sealed class HandshakeService : IHandshakeService, IDisposable
         if (!response.IsSuccessStatusCode)
             throw new HandshakeException($"OWCE API returned {(int)response.StatusCode}.");
 
-        var result = await response.Content.ReadFromJsonAsync<HandshakeResponse>(cancellationToken: cancellationToken);
+        var result = await response.Content.ReadFromJsonAsync<HandshakeResponse>(
+            cancellationToken: cancellationToken);
         if (result?.Token is null)
             throw new HandshakeException("OWCE API returned an empty token.");
 
         // Step 3: Write the response token back to the board
         var tokenBytes = Convert.FromHexString(result.Token);
         await _bleService.WriteCharacteristicAsync(
-            BoardStateService.SerialWriteUuid, tokenBytes, cancellationToken);
+            BLEUuids.SerialWrite, tokenBytes, cancellationToken);
     }
 
     /// <summary>
-    /// Polaris 6215 handshake (GT-S): write the static 20-byte token to SerialWriteUuid.
-    /// Must be repeated every 15 seconds via KeepAliveAsync.
+    /// Polaris 6215 handshake (GT-S): write the static 20-byte token to SerialWrite UUID.
+    /// Starts a self-managed 15-second keep-alive timer via the injected IDispatcher.
+    /// Keep-alive is internal — callers must not invoke it externally.
     /// </summary>
     private async Task PerformPolarisHandshakeAsync(CancellationToken cancellationToken)
     {
         await _bleService.WriteCharacteristicAsync(
-            BoardStateService.SerialWriteUuid,
+            BLEUuids.SerialWrite,
             GtsStaticToken,
             cancellationToken);
 
-        // Start the 15-second keep-alive timer on the main thread
-        MainThread.BeginInvokeOnMainThread(() =>
+        // Start the 15-second keep-alive timer via injected IDispatcher (not Application.Current)
+        _dispatcher.Dispatch(() =>
         {
-            _keepAliveTimer = Application.Current!.Dispatcher.CreateTimer();
+            _keepAliveTimer?.Stop();
+            _keepAliveTimer = _dispatcher.CreateTimer();
             _keepAliveTimer.Interval = TimeSpan.FromSeconds(15);
             _keepAliveTimer.Tick += async (_, _) =>
             {
-                try { await KeepAliveAsync(CancellationToken.None); }
-                catch { /* Swallow — board may have disconnected */ }
+                try
+                {
+                    await _bleService.WriteCharacteristicAsync(
+                        BLEUuids.SerialWrite,
+                        GtsStaticToken,
+                        CancellationToken.None);
+                }
+                catch
+                {
+                    // Swallow — board may have disconnected between ticks
+                }
             };
             _keepAliveTimer.Start();
         });

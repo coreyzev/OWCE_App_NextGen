@@ -9,6 +9,11 @@ namespace OWCE.Tests;
 /// <summary>
 /// Unit tests for HandshakeService.
 /// Verifies that the correct handshake strategy is selected per board type.
+///
+/// UUID constants now reference BLEUuids (OWCE.Contracts), not BoardStateService.
+/// KeepAliveAsync is no longer on the public interface — the keep-alive timer is
+/// self-managed internally. Tests verify the initial token write; the timer
+/// behaviour is an integration concern.
 /// </summary>
 public class HandshakeServiceTests
 {
@@ -19,7 +24,15 @@ public class HandshakeServiceTests
         httpFactory.Setup(f => f.CreateClient(It.IsAny<string>()))
                    .Returns(new HttpClient());
 
-        var svc = new HandshakeService(bleMock.Object, httpFactory.Object);
+        var dispatcherMock = new Mock<IDispatcher>();
+        // Dispatcher.Dispatch executes synchronously in tests
+        dispatcherMock
+            .Setup(d => d.Dispatch(It.IsAny<Action>()))
+            .Callback<Action>(a => a());
+        var timerMock = new Mock<IDispatcherTimer>();
+        dispatcherMock.Setup(d => d.CreateTimer()).Returns(timerMock.Object);
+
+        var svc = new HandshakeService(bleMock.Object, httpFactory.Object, dispatcherMock.Object);
         return (svc, bleMock);
     }
 
@@ -45,7 +58,7 @@ public class HandshakeServiceTests
         byte[]? writtenData = null;
 
         bleMock.Setup(b => b.WriteCharacteristicAsync(
-                BoardStateService.SerialWriteUuid,
+                BLEUuids.SerialWrite,
                 It.IsAny<byte[]>(),
                 It.IsAny<CancellationToken>()))
             .Callback<string, byte[], CancellationToken>((_, data, _) => writtenData = data)
@@ -54,7 +67,7 @@ public class HandshakeServiceTests
         await svc.PerformHandshakeAsync(OWBoardType.GTS, 0, CancellationToken.None);
 
         bleMock.Verify(b => b.WriteCharacteristicAsync(
-            BoardStateService.SerialWriteUuid,
+            BLEUuids.SerialWrite,
             It.IsAny<byte[]>(),
             It.IsAny<CancellationToken>()), Times.Once);
 
@@ -66,24 +79,33 @@ public class HandshakeServiceTests
     }
 
     [Fact]
-    public async Task KeepAlive_GTS_WritesTokenAgain()
+    public async Task GTS_StartsKeepAliveTimer_AfterHandshake()
     {
-        var (svc, bleMock) = CreateService();
+        // Verify that the internal keep-alive timer is started after GT-S handshake.
+        // KeepAliveAsync is NOT on the public interface — this test verifies the
+        // timer is created and started via the injected IDispatcher.
+        var bleMock = new Mock<IBLEService>();
+        var httpFactory = new Mock<IHttpClientFactory>();
+        httpFactory.Setup(f => f.CreateClient(It.IsAny<string>()))
+                   .Returns(new HttpClient());
+
+        var dispatcherMock = new Mock<IDispatcher>();
+        var timerMock = new Mock<IDispatcherTimer>();
+        dispatcherMock.Setup(d => d.Dispatch(It.IsAny<Action>()))
+                      .Callback<Action>(a => a());
+        dispatcherMock.Setup(d => d.CreateTimer()).Returns(timerMock.Object);
+
         bleMock.Setup(b => b.WriteCharacteristicAsync(
                 It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
-        // First: perform handshake
+        var svc = new HandshakeService(bleMock.Object, httpFactory.Object, dispatcherMock.Object);
         await svc.PerformHandshakeAsync(OWBoardType.GTS, 0, CancellationToken.None);
 
-        // Then: keep alive
-        await svc.KeepAliveAsync(CancellationToken.None);
-
-        // Should have been called twice: once for handshake, once for keep-alive
-        bleMock.Verify(b => b.WriteCharacteristicAsync(
-            BoardStateService.SerialWriteUuid,
-            It.IsAny<byte[]>(),
-            It.IsAny<CancellationToken>()), Times.Exactly(2));
+        // Timer should have been created and started
+        dispatcherMock.Verify(d => d.CreateTimer(), Times.Once);
+        timerMock.VerifySet(t => t.Interval = TimeSpan.FromSeconds(15));
+        timerMock.Verify(t => t.Start(), Times.Once);
     }
 
     [Fact]
