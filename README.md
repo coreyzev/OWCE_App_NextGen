@@ -1,68 +1,116 @@
 # OWCE App — NextGen
 
+> ## ⚠️ WORK IN PROGRESS — NOT YET FUNCTIONAL
+> This rewrite is under active development. **The app does not run yet.**
+> See [`PROGRESS.md`](PROGRESS.md) for the full task tracker.
+
+---
+
 **Onewheel Community Edition App** — A community-built companion app for Onewheel boards.
 
-This is a full modernization of the original [OWCE App](https://github.com/OnewheelCommunityEdition/OWCE_App), rewritten from Xamarin.Forms to **.NET MAUI 9** with a clean layered architecture, smartwatch support, and improved ride tracking.
+A full modernization of the original [OWCE App](https://github.com/OnewheelCommunityEdition/OWCE_App),
+rewritten from Xamarin.Forms to **.NET MAUI 9** with a clean layered architecture, smartwatch support, and improved ride tracking.
 
 > The original Xamarin codebase is preserved in the `legacy-xamarin` branch for reference.
 
-> **NOTE:** Onewheel Community Edition app is not endorsed by or affiliated with Future Motion in any way.
+> **Not endorsed by or affiliated with Future Motion in any way.**
 
-## Features
+---
+
+## Overall Progress
+
+```
+Architecture & Contracts  [████████████████████] 100%  ✓ Done
+BLE Service Layer         [████████████████░░░░]  80%  ⚠ BLEService.cs is a stub
+Ride Data / SQLite        [███████████████░░░░░]  75%  ⚠ SQLite attributes missing
+ViewModels                [████████████████████] 100%  ✓ Done (pending compile verify)
+UI / XAML Pages           [████████████░░░░░░░░]  60%  ⚠ Needs device verification
+Apple Watch               [█████████████░░░░░░░]  65%  ⚠ Xcode wiring step pending
+Wear OS                   [████████████░░░░░░░░]  60%  ⚠ Gradle version catalog pending
+CI / CD                   [████████████████████] 100%  ✓ Done
+Distribution              [░░░░░░░░░░░░░░░░░░░░]   0%  ✗ Not started
+
+Overall                   [████████████░░░░░░░░]  ~35% (architecture done, no device run yet)
+```
+
+> **What "35%" means in practice:** The design, contracts, and most service/ViewModel code is written and reviewed.
+> The app has never been compiled or run on a device. The next milestone is getting it to build and connect to a board.
+> Realistically, it is 2–3 focused sessions away from a first working build.
+
+---
+
+## Planned Features
 
 - Live ride dashboard: speed, battery, voltage, temperature, ride mode
 - Top speed tracking (current ride and all-time)
 - Ride history with distance, average speed, and top speed
-- GPS ride recording
+- GPS ride data recording
 - Light controls (front and rear)
-- Apple Watch companion app (current speed, top speed, battery, range)
-- Wear OS companion app (current speed, top speed, battery, range)
+- Apple Watch companion app (speed, top speed, battery, range)
+- Wear OS companion app (speed, top speed, battery, range)
 - Supports all Onewheel boards: V1, Plus, XR, Pint, Pint X, GT, GT-S
 
-> **NOTE:** GT support requires patching with [Rewheel](https://github.com/rewheel-app/rewheel). GT-S support uses the Polaris 6215 protocol.
+> GT support requires patching with [Rewheel](https://github.com/rewheel-app/rewheel).
+> GT-S support uses the Polaris 6215 protocol (community-documented).
+
+---
 
 ## Architecture
 
-See `docs/adrs/` for Architecture Decision Records.
-
 ```
 src/
-  OWCE.Contracts/   — Interfaces and shared models (no implementation)
+  OWCE.Contracts/   — Interfaces, enums, BLEUuids, shared models (no implementation)
   OWCE.App/         — .NET MAUI 9 application
-    Services/       — Business logic (BLE, Board State, Ride, Settings)
+    Services/       — BLE, Board State, Handshake, Ride, Settings
     ViewModels/     — CommunityToolkit.Mvvm ViewModels
     Views/          — XAML pages and controls
-    Platforms/      — Platform-specific implementations
+    Platforms/      — iOS and Android platform-specific code
+  OWCE.Watch.iOS/   — watchOS companion app (native Swift/C#)
+  OWCE.Watch.Android/ — Wear OS companion app (Kotlin + Compose)
   OWCE.Tests/       — xUnit unit tests
 docs/
-  adrs/             — Architecture Decision Records
-AGENTS.md           — AI agent shared memory and core rules
+  adrs/             — Architecture Decision Records (why things are the way they are)
+AGENTS.md           — AI agent shared memory and 12 Core Rules
 BACKLOG.md          — Deferred features with context
+PROGRESS.md         — Full task tracker
 ```
+
+See `docs/adrs/` for the full Architecture Decision Records.
+
+---
 
 ## Development
 
-This project is developed with AI agent assistance. See `AGENTS.md` for the core rules that govern all code contributions.
+This project is developed with AI agent assistance (Manus, Claude, Codex).
+See [`AGENTS.md`](AGENTS.md) for the 12 Core Rules that govern all contributions.
+See [`PROGRESS.md`](PROGRESS.md) for what's done and what's next.
 
 ### Prerequisites
 
-- .NET 9 SDK
-- Visual Studio 2022 (Windows) or Visual Studio for Mac / Rider (macOS)
-- Xcode 15+ (for iOS and watchOS builds)
-- Android SDK API 23+ (for Android builds)
+- .NET 9 SDK with MAUI workload (`dotnet workload install maui`)
+- Visual Studio for Mac or JetBrains Rider (macOS, for iOS builds)
+- Xcode 15+ (iOS and watchOS)
+- Android SDK API 23+
 
 ### Building
 
 ```bash
+dotnet restore OWCE.sln
 dotnet build OWCE.sln
 dotnet test src/OWCE.Tests/OWCE.Tests.csproj
 ```
 
-## Distribution
+---
+
+## Distribution (Planned)
 
 - **Android:** F-Droid (primary) and direct APK sideloading
-- **iOS:** AltStore / SideStore
+- **iOS:** AltStore / SideStore (no App Store account required for users)
+
+See [`docs/DISTRIBUTION.md`](docs/DISTRIBUTION.md) for full instructions.
+
+---
 
 ## Contributing
 
-Please read `AGENTS.md` before contributing. All PRs are reviewed against the AI Review Checklist.
+Read [`AGENTS.md`](AGENTS.md) before contributing. All PRs are reviewed against the 12 Core Rules.
