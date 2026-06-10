@@ -30,6 +30,12 @@ public static class MauiProgram
         // Board state (processes raw BLE bytes into typed properties)
         builder.Services.AddSingleton<IBoardStateService, BoardStateService>();
 
+        // Handshake (strategy pattern: V1/Plus/XR = none, Pint/GT = Gemini, GT-S = Polaris)
+        builder.Services.AddSingleton<IHandshakeService, HandshakeService>();
+
+        // Board connection orchestrator
+        builder.Services.AddSingleton<BoardConnectionService>();
+
         // Ride recording and history
         builder.Services.AddSingleton<IRideService, RideService>();
 

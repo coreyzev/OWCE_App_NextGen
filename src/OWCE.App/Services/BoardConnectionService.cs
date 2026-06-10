@@ -1,0 +1,143 @@
+using CommunityToolkit.Mvvm.Messaging;
+using OWCE.Contracts;
+using OWCE.Messages;
+
+namespace OWCE.Services;
+
+/// <summary>
+/// Orchestrates the full board connection lifecycle:
+/// 1. BLE connect
+/// 2. Read hardware/firmware revision to identify board type
+/// 3. Perform handshake (if required)
+/// 4. Subscribe to all telemetry characteristics
+/// 5. Start pushing state updates to IBoardStateService
+///
+/// This class replaces the sprawling connection logic that was scattered
+/// across OWBoard.cs, App.xaml.cs, and the platform BLE implementations.
+/// </summary>
+public sealed class BoardConnectionService : IDisposable
+{
+    private readonly IBLEService _bleService;
+    private readonly IBoardStateService _boardState;
+    private readonly IHandshakeService _handshake;
+    private bool _disposed;
+
+    // Characteristics to subscribe to for live telemetry (ordered by priority)
+    private static readonly string[] TelemetrySubscriptions =
+    [
+        BoardStateService.RpmUuid,
+        BoardStateService.BatteryPercentUuid,
+        BoardStateService.BatteryVoltageUuid,
+        BoardStateService.TemperatureUuid,
+        BoardStateService.BatteryTemperatureUuid,
+        BoardStateService.TripOdometerUuid,
+        BoardStateService.CurrentAmpsUuid,
+        BoardStateService.TripAmpHoursUuid,
+        BoardStateService.TripRegenAmpHoursUuid,
+        BoardStateService.RideModeUuid,
+        BoardStateService.LightModeUuid,
+        BoardStateService.LightsFrontUuid,
+        BoardStateService.LightsBackUuid,
+        BoardStateService.SimpleStopUuid,
+    ];
+
+    // Characteristics to read once on connect (static board info)
+    private static readonly string[] StaticReads =
+    [
+        BoardStateService.HardwareRevisionUuid,
+        BoardStateService.FirmwareRevisionUuid,
+        BoardStateService.SerialNumberUuid,
+        BoardStateService.LifetimeOdometerUuid,
+    ];
+
+    public BoardConnectionService(
+        IBLEService bleService,
+        IBoardStateService boardState,
+        IHandshakeService handshake)
+    {
+        _bleService = bleService;
+        _boardState = boardState;
+        _handshake = handshake;
+
+        _bleService.ValueUpdated += OnValueUpdated;
+        _bleService.ConnectionStateChanged += OnConnectionStateChanged;
+    }
+
+    /// <summary>
+    /// Connects to the board identified by deviceId and performs the full
+    /// connect → identify → handshake → subscribe sequence.
+    /// </summary>
+    public async Task ConnectAsync(string deviceId, CancellationToken cancellationToken)
+    {
+        bool connected = await _bleService.ConnectAsync(deviceId, cancellationToken);
+        if (!connected)
+            throw new InvalidOperationException($"Failed to connect to device {deviceId}.");
+
+        // Read static characteristics to identify the board type
+        foreach (var uuid in StaticReads)
+        {
+            try
+            {
+                var data = await _bleService.ReadCharacteristicAsync(uuid, cancellationToken);
+                _boardState.ProcessValueUpdate(uuid, data);
+            }
+            catch (Exception ex)
+            {
+                // Non-fatal: some boards may not expose all characteristics
+                System.Diagnostics.Debug.WriteLine($"[OWCE] Could not read {uuid}: {ex.Message}");
+            }
+        }
+
+        var boardType = _boardState.CurrentState?.BoardType ?? OWBoardType.Unknown;
+        var firmwareRevision = _boardState.CurrentState?.FirmwareRevision ?? 0;
+
+        // Perform handshake if required
+        await _handshake.PerformHandshakeAsync(boardType, firmwareRevision, cancellationToken);
+
+        // Subscribe to live telemetry
+        foreach (var uuid in TelemetrySubscriptions)
+        {
+            try
+            {
+                await _bleService.SubscribeToCharacteristicAsync(uuid, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[OWCE] Could not subscribe to {uuid}: {ex.Message}");
+            }
+        }
+
+        // Notify the rest of the app that a board is connected
+        if (_boardState.CurrentState is not null)
+            WeakReferenceMessenger.Default.Send(new BoardConnectedMessage(_boardState.CurrentState));
+    }
+
+    public async Task DisconnectAsync()
+    {
+        await _bleService.DisconnectAsync();
+        _boardState.Reset();
+        WeakReferenceMessenger.Default.Send(new BoardDisconnectedMessage("User disconnected."));
+    }
+
+    private void OnValueUpdated(object? sender, (string CharacteristicUuid, byte[] Data) e)
+    {
+        _boardState.ProcessValueUpdate(e.CharacteristicUuid, e.Data);
+    }
+
+    private void OnConnectionStateChanged(object? sender, bool isConnected)
+    {
+        if (!isConnected)
+        {
+            _boardState.Reset();
+            WeakReferenceMessenger.Default.Send(new BoardDisconnectedMessage("Connection lost."));
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _bleService.ValueUpdated -= OnValueUpdated;
+        _bleService.ConnectionStateChanged -= OnConnectionStateChanged;
+        _disposed = true;
+    }
+}
