@@ -40,11 +40,18 @@
     <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
     <string>OWCE uses your location in the background to continue recording your ride when the app is minimized.</string>
 
-    <!-- Background Modes: BLE + Location -->
+    <!-- Background Modes: BLE + Location + BGTaskScheduler -->
     <key>UIBackgroundModes</key>
     <array>
         <string>bluetooth-central</string>
         <string>location</string>
+        <string>processing</string>
+    </array>
+
+    <!-- BGTaskScheduler: BLE keepalive task (fixes issue #111 - iOS background disconnect) -->
+    <key>BGTaskSchedulerPermittedIdentifiers</key>
+    <array>
+        <string>app.owce.ble-keepalive</string>
     </array>
 </dict>
 </plist>
