@@ -36,8 +36,17 @@ The original app had a partial `WatchSyncEventHandler.cs` for iOS only. Android 
 - `SpeedUnit` (enum: Mph / KmH) — so the watch can display in the user's preferred unit
 - `IsRiding` (bool) — watch shows "Not Riding" state when false
 
+## Implementation Status (Phase 6)
+
+- **iOS phone side:** `OWCE.App/Platforms/iOS/Services/WatchSyncService.cs` — WCSession with SendMessage + UpdateApplicationContext fallback
+- **watchOS app:** `OWCE.Watch.iOS/Controllers/InterfaceController.cs` — WKInterfaceController receiving data via WCSessionDelegate
+- **Android phone side:** `OWCE.App/Platforms/Android/Services/WatchSyncService.cs` — DataClient.PutDataItem with SetUrgent()
+- **Wear OS app:** `OWCE.Watch.Android/src/` — Kotlin + Jetpack Compose for Wear, OWCEDataListenerService receives DATA_CHANGED
+
 ## Consequences
 
 - Watch apps are passive displays only. They never initiate BLE connections.
-- Phase 6 requires human assistance for initial Xcode project setup (watchOS bundle).
-- Wear OS tile is a Phase 6 stretch goal; the full Wear OS app is the primary deliverable.
+- Watch sync is non-critical: all errors are swallowed silently in BoardViewModel.
+- The 1 Hz sync rate is sufficient for watch display and does not impact BLE performance.
+- iOS: watchOS bundle requires Xcode project reference (human step at milestone M3).
+- Android: Wear OS APK is a separate build, sideloaded or bundled via wearApp Gradle dependency.

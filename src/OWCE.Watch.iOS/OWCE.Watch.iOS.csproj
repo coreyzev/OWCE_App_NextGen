@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- watchOS extension targeting .NET 9 -->
+    <TargetFramework>net9.0-watchos</TargetFramework>
+    <RootNamespace>OWCE.Watch.iOS</RootNamespace>
+    <AssemblyName>OWCE.Watch.iOS</AssemblyName>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Watch extension requires WKExtensionMainAlternate entitlement -->
+    <CodesignEntitlements>Entitlements.plist</CodesignEntitlements>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InterfaceDefinition Include="Resources/Interface.storyboard" />
+    <BundleResource Include="Resources/Assets.xcassets" />
+  </ItemGroup>
+</Project>
