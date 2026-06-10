@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using OWCE.Contracts;
 using OWCE.Messages;
@@ -15,25 +16,41 @@ public sealed partial class AppSettingsViewModel : BaseViewModel
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsMetric))]
+    [NotifyPropertyChangedFor(nameof(SpeedUnitDisplay))]
     private SpeedUnit _speedUnit;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TempUnitDisplay))]
     private TempUnit _tempUnit;
 
     [ObservableProperty]
     private bool _autoStartRideRecording;
 
     public bool IsMetric => SpeedUnit == SpeedUnit.KmH;
+    public string SpeedUnitDisplay => SpeedUnit == SpeedUnit.Mph ? "mph" : "km/h";
+    public string TempUnitDisplay => TempUnit == TempUnit.Fahrenheit ? "°F" : "°C";
 
     public AppSettingsViewModel(IAppSettingsService settings)
     {
         _settings = settings;
         Title = "Settings";
 
-        // Load current values
+        // Load current values without triggering the partial methods
         _speedUnit = settings.SpeedUnit;
         _tempUnit = settings.TempUnit;
         _autoStartRideRecording = settings.AutoStartRideRecording;
+    }
+
+    [RelayCommand]
+    private void ToggleSpeedUnit()
+    {
+        SpeedUnit = SpeedUnit == SpeedUnit.Mph ? SpeedUnit.KmH : SpeedUnit.Mph;
+    }
+
+    [RelayCommand]
+    private void ToggleTempUnit()
+    {
+        TempUnit = TempUnit == TempUnit.Fahrenheit ? TempUnit.Celsius : TempUnit.Fahrenheit;
     }
 
     partial void OnSpeedUnitChanged(SpeedUnit value)
