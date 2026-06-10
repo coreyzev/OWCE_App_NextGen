@@ -1,53 +1,68 @@
-Onewheel Community Edition (OWCE) App
-===========
+# OWCE App — NextGen
 
-A cross-platform app for use with the [Onewheel](https://onewheel.com/) V1, Plus, XR, Pint, Pint X and GT.
+**Onewheel Community Edition App** — A community-built companion app for Onewheel boards.
 
-NOTE: GT support requires patching with [Rewheel](https://github.com/rewheel-app/rewheel).
-The newer board firmware no longer sends through voltage, as Future Motion removed it. Those versions are:
-- XR with firmware 4155 and higher
-- Pint with firmware 5059 and higher
-_ Pint X, all firmware
-- GT, all firmware
+This is a full modernization of the original [OWCE App](https://github.com/OnewheelCommunityEdition/OWCE_App), rewritten from Xamarin.Forms to **.NET MAUI 9** with a clean layered architecture, smartwatch support, and improved ride tracking.
 
-NOTE: Onewheel Community Edition app is not endorsed by or affiliated with Future Motion in any way.
+> The original Xamarin codebase is preserved in the `legacy-xamarin` branch for reference.
 
-Written in C# with [Xamarin](http://www.xamarin.com)
+> **NOTE:** Onewheel Community Edition app is not endorsed by or affiliated with Future Motion in any way.
 
-Open Source Project by [@beeradmoore](http://www.twitter.com/beeradmoore) 
+## Features
 
-## Available (soon) for free on:
-* Android and WearOS: Available on Google Play
-* iPhone and Apple Watch: Available on App Store
+- Live ride dashboard: speed, battery, voltage, temperature, ride mode
+- Top speed tracking (current ride and all-time)
+- Ride history with distance, average speed, and top speed
+- GPS ride recording
+- Light controls (front and rear)
+- Apple Watch companion app (current speed, top speed, battery, range)
+- Wear OS companion app (current speed, top speed, battery, range)
+- Supports all Onewheel boards: V1, Plus, XR, Pint, Pint X, GT, GT-S
 
-## How to build and run this project. 
+> **NOTE:** GT support requires patching with [Rewheel](https://github.com/rewheel-app/rewheel). GT-S support uses the Polaris 6215 protocol.
 
-Before you start, you will need to install both Visual Studio and Xamarin. If you are using Windows you will want Visual Studio 2017 ([install guide here](https://docs.microsoft.com/en-us/xamarin/cross-platform/get-started/installation/windows)) or if you are on macOS you will want Visual Studio for Mac ([install guide here](https://docs.microsoft.com/en-us/visualstudio/mac/installation)).
+## Architecture
 
-Using your flavor of Visual Studio, open OWCE.sln. From the platform dropdown, choose OWCE.iOS or OWCE.Android, depending on what platform you wish to build for. Then, deploy and debug your app like any other project.
+See `docs/adrs/` for Architecture Decision Records.
 
-NOTE: Because the app depends on the Onewheels low-energy Bluetooth, it will not function correctly in a simulator/emulator. For best results, deploy to a physical device. 
+```
+src/
+  OWCE.Contracts/   — Interfaces and shared models (no implementation)
+  OWCE.App/         — .NET MAUI 9 application
+    Services/       — Business logic (BLE, Board State, Ride, Settings)
+    ViewModels/     — CommunityToolkit.Mvvm ViewModels
+    Views/          — XAML pages and controls
+    Platforms/      — Platform-specific implementations
+  OWCE.Tests/       — xUnit unit tests
+docs/
+  adrs/             — Architecture Decision Records
+AGENTS.md           — AI agent shared memory and core rules
+BACKLOG.md          — Deferred features with context
+```
 
+## Development
 
+This project is developed with AI agent assistance. See `AGENTS.md` for the core rules that govern all code contributions.
 
-## Frequently (or not so frequently) Asked Questions
+### Prerequisites
 
-### Why did you create this?
+- .NET 9 SDK
+- Visual Studio 2022 (Windows) or Visual Studio for Mac / Rider (macOS)
+- Xcode 15+ (for iOS and watchOS builds)
+- Android SDK API 23+ (for Android builds)
 
-There are quite a number of members on the [Onewheel Owners Facebook group](https://www.facebook.com/groups/onewheelownersgroup/) that, for one reason or another, don't like the stock app by Future Motion. I figured, why not create an app with its development shaped by features that the community wants?
+### Building
 
-### Do other third-party apps already exist?
+```bash
+dotnet build OWCE.sln
+dotnet test src/OWCE.Tests/OWCE.Tests.csproj
+```
 
-Yes, but Future Motion's firmware lockdowns prohibit them from being used. Such as pOnewheel[https://github.com/ponewheel/android-ponewheel] (deprecated) for Android and Float Deck (obsolete) for iOS. However, the problem is that one is for Android, and the other is for iOS. Wouldn't it be better if there was just 1 app with the exact same feature sets shared across both platforms?
+## Distribution
 
-### Does this change how my Onewheel performs?
+- **Android:** F-Droid (primary) and direct APK sideloading
+- **iOS:** AltStore / SideStore
 
-No. This app uses the same Bluetooth low energy (BLE) interface that the official Onewheel app uses to read and display various stats.
+## Contributing
 
-### What Onewheels are supported?
-
-Currently, v1, Plus, XR, and Pint. Pint X and GT have not yet been thoroughly tested.
-
-### Will using this app void my warranty?
-
-Although things such as riding your board without a helmet can void your warranty, we don't believe that using third-party apps will void your warranty.
+Please read `AGENTS.md` before contributing. All PRs are reviewed against the AI Review Checklist.

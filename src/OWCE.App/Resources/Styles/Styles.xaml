@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ResourceDictionary xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+
+    <Style TargetType="ContentPage" ApplyToDerivedTypes="True">
+        <Setter Property="BackgroundColor" Value="{StaticResource OWCEBackground}" />
+    </Style>
+
+    <Style TargetType="Label">
+        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
+        <Setter Property="FontFamily" Value="SairaRegular" />
+    </Style>
+
+    <Style x:Key="SpeedLabel" TargetType="Label">
+        <Setter Property="FontFamily" Value="SairaBold" />
+        <Setter Property="TextColor" Value="{StaticResource OWCEPrimary}" />
+        <Setter Property="FontSize" Value="72" />
+    </Style>
+
+    <Style x:Key="MetricLabel" TargetType="Label">
+        <Setter Property="FontFamily" Value="SairaSemiBold" />
+        <Setter Property="TextColor" Value="{StaticResource TextSecondary}" />
+        <Setter Property="FontSize" Value="14" />
+    </Style>
+
+</ResourceDictionary>

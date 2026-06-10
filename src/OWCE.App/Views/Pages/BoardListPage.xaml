@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:OWCE.ViewModels"
+             x:DataType="vm:BoardListViewModel"
+             x:Class="OWCE.Views.Pages.BoardListPage"
+             Title="Find Your Board">
+
+    <!-- Phase 5: Full UI implementation -->
+    <VerticalStackLayout Padding="24" Spacing="16">
+        <Label Text="Scanning for Onewheels..." FontSize="18" HorizontalOptions="Center" />
+        <ActivityIndicator IsRunning="{Binding IsScanning}" IsVisible="{Binding IsScanning}" />
+        <CollectionView ItemsSource="{Binding DiscoveredBoards}">
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="vm:DiscoveredBoardViewModel">
+                    <Label Text="{Binding Name}" Padding="8" />
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+    </VerticalStackLayout>
+</ContentPage>
