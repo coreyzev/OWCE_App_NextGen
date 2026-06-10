@@ -1,8 +1,185 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:OWCE.ViewModels"
+             xmlns:controls="clr-namespace:OWCE.Views.Controls"
+             x:DataType="vm:BoardViewModel"
              x:Class="OWCE.Views.Pages.BoardPage"
-             Title="BoardPage">
-    <!-- Phase 5: Full UI implementation -->
-    <Label Text="BoardPage — coming in Phase 5" HorizontalOptions="Center" VerticalOptions="Center" />
+             Title="{Binding BoardName}"
+             BackgroundColor="{StaticResource OWCEBackground}">
+
+    <Shell.TitleView>
+        <Grid ColumnDefinitions="*,Auto" Padding="0,0,8,0">
+            <Label Grid.Column="0"
+                   Text="{Binding BoardName}"
+                   FontFamily="SairaBold"
+                   FontSize="16"
+                   TextColor="{StaticResource TextPrimary}"
+                   VerticalOptions="Center" />
+            <Label Grid.Column="1"
+                   Text="{Binding Rssi, StringFormat='{0} dBm'}"
+                   Style="{StaticResource MetricLabel}"
+                   VerticalOptions="Center" />
+        </Grid>
+    </Shell.TitleView>
+
+    <ScrollView>
+        <VerticalStackLayout Padding="16" Spacing="16">
+
+            <!-- Speed Arc + Speed Display -->
+            <Grid HeightRequest="280">
+                <controls:SpeedArcView
+                    CurrentSpeed="{Binding CurrentSpeed}"
+                    TopSpeed="{Binding TopSpeedThisRide}"
+                    MaxSpeed="30"
+                    IsRegen="{Binding IsRegen}"
+                    HorizontalOptions="Fill"
+                    VerticalOptions="Fill" />
+                <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" Spacing="0">
+                    <Label Text="{Binding CurrentSpeed, StringFormat='{0:F1}'}"
+                           FontFamily="SairaBold"
+                           FontSize="72"
+                           TextColor="{StaticResource TextPrimary}"
+                           HorizontalOptions="Center" />
+                    <Label Text="{Binding SpeedUnit}"
+                           FontFamily="SairaBold"
+                           FontSize="14"
+                           TextColor="{StaticResource TextSecondary}"
+                           HorizontalOptions="Center" />
+                    <Label Text="{Binding TopSpeedThisRide, StringFormat='TOP {0:F1}'}"
+                           FontFamily="SairaBold"
+                           FontSize="13"
+                           TextColor="{StaticResource BatteryRed}"
+                           HorizontalOptions="Center"
+                           Margin="0,6,0,0" />
+                </VerticalStackLayout>
+            </Grid>
+
+            <!-- Battery Row -->
+            <Border Padding="16,12" BackgroundColor="#0D0D1A"
+                    StrokeShape="RoundRectangle 12" Stroke="#1A1A3E">
+                <Grid ColumnDefinitions="*,*,*">
+                    <VerticalStackLayout Grid.Column="0" HorizontalOptions="Center" Spacing="4">
+                        <controls:BatteryView Percent="{Binding BatteryPercent}" HorizontalOptions="Center" />
+                        <Label Text="BATTERY" FontSize="10" TextColor="{StaticResource TextSecondary}"
+                               HorizontalOptions="Center" />
+                    </VerticalStackLayout>
+                    <VerticalStackLayout Grid.Column="1" HorizontalOptions="Center" Spacing="4">
+                        <Label Text="{Binding BatteryVoltage, StringFormat='{0:F1}V'}"
+                               FontFamily="SairaBold" FontSize="20"
+                               TextColor="{StaticResource OWCEPrimary}" HorizontalOptions="Center" />
+                        <Label Text="VOLTAGE" FontSize="10" TextColor="{StaticResource TextSecondary}"
+                               HorizontalOptions="Center" />
+                    </VerticalStackLayout>
+                    <VerticalStackLayout Grid.Column="2" HorizontalOptions="Center" Spacing="4">
+                        <Label Text="{Binding CurrentAmps, StringFormat='{0:F1}A'}"
+                               FontFamily="SairaBold" FontSize="20"
+                               HorizontalOptions="Center">
+                            <Label.TextColor>
+                                <Binding Path="IsRegen"
+                                         Converter="{StaticResource BoolToRegenColorConverter}" />
+                            </Label.TextColor>
+                        </Label>
+                        <Label Text="{Binding IsRegen, Converter={StaticResource BoolToRegenTextConverter}}"
+                               FontSize="10" TextColor="{StaticResource TextSecondary}"
+                               HorizontalOptions="Center" />
+                    </VerticalStackLayout>
+                </Grid>
+            </Border>
+
+            <!-- Trip Stats Row -->
+            <Border Padding="16,12" BackgroundColor="#0D0D1A"
+                    StrokeShape="RoundRectangle 12" Stroke="#1A1A3E">
+                <Grid ColumnDefinitions="*,*,*">
+                    <VerticalStackLayout Grid.Column="0" HorizontalOptions="Center" Spacing="4">
+                        <Label Text="{Binding TripDistanceMiles, StringFormat='{0:F2}'}"
+                               FontFamily="SairaBold" FontSize="20"
+                               TextColor="{StaticResource OWCEPrimary}" HorizontalOptions="Center" />
+                        <Label Text="TRIP MI" FontSize="10" TextColor="{StaticResource TextSecondary}"
+                               HorizontalOptions="Center" />
+                    </VerticalStackLayout>
+                    <VerticalStackLayout Grid.Column="1" HorizontalOptions="Center" Spacing="4">
+                        <Label Text="{Binding RideMode}"
+                               FontFamily="SairaBold" FontSize="16"
+                               TextColor="{StaticResource OWCEAccent}" HorizontalOptions="Center" />
+                        <Label Text="MODE" FontSize="10" TextColor="{StaticResource TextSecondary}"
+                               HorizontalOptions="Center" />
+                    </VerticalStackLayout>
+                    <VerticalStackLayout Grid.Column="2" HorizontalOptions="Center" Spacing="4">
+                        <Label Text="{Binding LifetimeOdometerMiles, StringFormat='{0:F0}'}"
+                               FontFamily="SairaBold" FontSize="20"
+                               TextColor="{StaticResource OWCEPrimary}" HorizontalOptions="Center" />
+                        <Label Text="LIFETIME MI" FontSize="10" TextColor="{StaticResource TextSecondary}"
+                               HorizontalOptions="Center" />
+                    </VerticalStackLayout>
+                </Grid>
+            </Border>
+
+            <!-- Temperature Row -->
+            <Border Padding="16,12" BackgroundColor="#0D0D1A"
+                    StrokeShape="RoundRectangle 12" Stroke="#1A1A3E">
+                <Grid ColumnDefinitions="*,*">
+                    <VerticalStackLayout Grid.Column="0" HorizontalOptions="Center" Spacing="4">
+                        <Label Text="{Binding ControllerTemp, StringFormat='{0:F0}'}"
+                               FontFamily="SairaBold" FontSize="20"
+                               TextColor="{StaticResource OWCEPrimary}" HorizontalOptions="Center" />
+                        <Label Text="{Binding TempUnit, StringFormat='CTRL {0}'}"
+                               FontSize="10" TextColor="{StaticResource TextSecondary}"
+                               HorizontalOptions="Center" />
+                    </VerticalStackLayout>
+                    <VerticalStackLayout Grid.Column="1" HorizontalOptions="Center" Spacing="4">
+                        <Label Text="{Binding MotorTemp, StringFormat='{0:F0}'}"
+                               FontFamily="SairaBold" FontSize="20"
+                               TextColor="{StaticResource OWCEPrimary}" HorizontalOptions="Center" />
+                        <Label Text="{Binding TempUnit, StringFormat='MOTOR {0}'}"
+                               FontSize="10" TextColor="{StaticResource TextSecondary}"
+                               HorizontalOptions="Center" />
+                    </VerticalStackLayout>
+                </Grid>
+            </Border>
+
+            <!-- Light Controls -->
+            <Border Padding="16,12" BackgroundColor="#0D0D1A"
+                    StrokeShape="RoundRectangle 12" Stroke="#1A1A3E">
+                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" RowSpacing="10">
+                    <Label Grid.Row="0" Grid.ColumnSpan="2"
+                           Text="LIGHTS" FontSize="10"
+                           TextColor="{StaticResource TextSecondary}" />
+                    <Label Grid.Row="1" Grid.Column="0"
+                           Text="Lights On/Off"
+                           TextColor="{StaticResource TextPrimary}"
+                           VerticalOptions="Center" />
+                    <Switch Grid.Row="1" Grid.Column="1"
+                            IsToggled="{Binding LightMode}"
+                            OnColor="{StaticResource OWCEPrimary}"
+                            ThumbColor="White" />
+                </Grid>
+            </Border>
+
+            <!-- Record / Disconnect Buttons -->
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                <Button Grid.Column="0"
+                        Text="{Binding RecordButtonText}"
+                        Command="{Binding ToggleRideRecordingCommand}"
+                        BackgroundColor="{StaticResource OWCEPrimary}"
+                        TextColor="Black"
+                        FontFamily="SairaBold"
+                        FontSize="16"
+                        HeightRequest="48"
+                        CornerRadius="12" />
+                <Button Grid.Column="1"
+                        Text="Disconnect"
+                        Command="{Binding DisconnectCommand}"
+                        BackgroundColor="Transparent"
+                        TextColor="{StaticResource TextSecondary}"
+                        FontFamily="SairaBold"
+                        FontSize="16"
+                        HeightRequest="48"
+                        BorderColor="{StaticResource TextSecondary}"
+                        BorderWidth="1"
+                        CornerRadius="12" />
+            </Grid>
+
+        </VerticalStackLayout>
+    </ScrollView>
 </ContentPage>

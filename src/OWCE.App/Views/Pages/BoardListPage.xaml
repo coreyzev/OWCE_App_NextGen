@@ -4,18 +4,79 @@
              xmlns:vm="clr-namespace:OWCE.ViewModels"
              x:DataType="vm:BoardListViewModel"
              x:Class="OWCE.Views.Pages.BoardListPage"
-             Title="Find Your Board">
+             Title="Find Your Board"
+             BackgroundColor="{StaticResource OWCEBackground}">
 
-    <!-- Phase 5: Full UI implementation -->
-    <VerticalStackLayout Padding="24" Spacing="16">
-        <Label Text="Scanning for Onewheels..." FontSize="18" HorizontalOptions="Center" />
-        <ActivityIndicator IsRunning="{Binding IsScanning}" IsVisible="{Binding IsScanning}" />
-        <CollectionView ItemsSource="{Binding DiscoveredBoards}">
+    <Grid RowDefinitions="Auto,*,Auto" Padding="24,16">
+
+        <!-- Header -->
+        <VerticalStackLayout Grid.Row="0" Spacing="8" Margin="0,0,0,16">
+            <Label Text="OWCE"
+                   FontFamily="SairaBold"
+                   FontSize="36"
+                   TextColor="{StaticResource OWCEPrimary}"
+                   HorizontalOptions="Center" />
+            <Label Text="{Binding StatusMessage}"
+                   Style="{StaticResource MetricLabel}"
+                   HorizontalOptions="Center" />
+            <Label Text="{Binding ErrorMessage}"
+                   TextColor="{StaticResource BatteryRed}"
+                   FontSize="13"
+                   HorizontalOptions="Center"
+                   IsVisible="{Binding ErrorMessage, Converter={StaticResource IsNotNullOrEmptyConverter}}" />
+        </VerticalStackLayout>
+
+        <!-- Board List -->
+        <CollectionView Grid.Row="1"
+                        ItemsSource="{Binding DiscoveredBoards}"
+                        EmptyView="No boards found. Tap Scan to search.">
             <CollectionView.ItemTemplate>
                 <DataTemplate x:DataType="vm:DiscoveredBoardViewModel">
-                    <Label Text="{Binding Name}" Padding="8" />
+                    <Border Margin="0,4"
+                            Padding="16,12"
+                            BackgroundColor="#1A1A2E"
+                            StrokeShape="RoundRectangle 12"
+                            Stroke="{StaticResource OWCESecondary}"
+                            StrokeThickness="1">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer
+                                Command="{Binding Source={RelativeSource AncestorType={x:Type vm:BoardListViewModel}}, Path=ConnectToBoardCommand}"
+                                CommandParameter="{Binding .}" />
+                        </Border.GestureRecognizers>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <VerticalStackLayout Grid.Column="0" Spacing="2">
+                                <Label Text="{Binding Name}"
+                                       FontFamily="SairaBold"
+                                       FontSize="18"
+                                       TextColor="{StaticResource TextPrimary}" />
+                                <Label Text="{Binding RssiDisplay}"
+                                       Style="{StaticResource MetricLabel}" />
+                            </VerticalStackLayout>
+                            <Label Grid.Column="1"
+                                   Text="›"
+                                   FontSize="24"
+                                   TextColor="{StaticResource OWCEPrimary}"
+                                   VerticalOptions="Center" />
+                        </Grid>
+                    </Border>
                 </DataTemplate>
             </CollectionView.ItemTemplate>
         </CollectionView>
-    </VerticalStackLayout>
+
+        <!-- Scan Button & Activity Indicator -->
+        <VerticalStackLayout Grid.Row="2" Spacing="12" Margin="0,16,0,0">
+            <ActivityIndicator IsRunning="{Binding IsConnecting}"
+                               IsVisible="{Binding IsConnecting}"
+                               Color="{StaticResource OWCEPrimary}" />
+            <Button Text="{Binding ScanButtonText}"
+                    Command="{Binding ToggleScanCommand}"
+                    BackgroundColor="{StaticResource OWCEPrimary}"
+                    TextColor="Black"
+                    FontFamily="SairaBold"
+                    FontSize="18"
+                    HeightRequest="52"
+                    CornerRadius="12"
+                    IsEnabled="{Binding IsConnecting, Converter={StaticResource InvertBoolConverter}}" />
+        </VerticalStackLayout>
+    </Grid>
 </ContentPage>

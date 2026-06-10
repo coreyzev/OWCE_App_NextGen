@@ -1,8 +1,53 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:OWCE.ViewModels"
+             x:DataType="vm:BoardDetailsViewModel"
              x:Class="OWCE.Views.Pages.BoardDetailsPage"
-             Title="BoardDetailsPage">
-    <!-- Phase 5: Full UI implementation -->
-    <Label Text="BoardDetailsPage — coming in Phase 5" HorizontalOptions="Center" VerticalOptions="Center" />
+             Title="Board Details"
+             BackgroundColor="{StaticResource OWCEBackground}">
+    <ScrollView>
+        <VerticalStackLayout Padding="16" Spacing="12">
+            <Border Padding="16,12" BackgroundColor="#0D0D1A"
+                    StrokeShape="RoundRectangle 12" Stroke="#1A1A3E">
+                <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="12">
+                    <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+                        <Label Grid.Column="0" Text="Board Type"
+                               TextColor="{StaticResource TextSecondary}" FontSize="13" />
+                        <Label Grid.Column="1" Text="{Binding BoardTypeName}"
+                               FontFamily="SairaBold" FontSize="16"
+                               TextColor="{StaticResource OWCEPrimary}" />
+                    </Grid>
+                    <Grid Grid.Row="1" ColumnDefinitions="*,Auto">
+                        <Label Grid.Column="0" Text="Serial Number"
+                               TextColor="{StaticResource TextSecondary}" FontSize="13" />
+                        <Label Grid.Column="1" Text="{Binding SerialNumber}"
+                               FontFamily="SairaBold" FontSize="16"
+                               TextColor="{StaticResource TextPrimary}" />
+                    </Grid>
+                    <Grid Grid.Row="2" ColumnDefinitions="*,Auto">
+                        <Label Grid.Column="0" Text="Firmware"
+                               TextColor="{StaticResource TextSecondary}" FontSize="13" />
+                        <Label Grid.Column="1" Text="{Binding FirmwareRevision}"
+                               FontFamily="SairaBold" FontSize="16"
+                               TextColor="{StaticResource TextPrimary}" />
+                    </Grid>
+                    <Grid Grid.Row="3" ColumnDefinitions="*,Auto">
+                        <Label Grid.Column="0" Text="Hardware"
+                               TextColor="{StaticResource TextSecondary}" FontSize="13" />
+                        <Label Grid.Column="1" Text="{Binding HardwareRevision}"
+                               FontFamily="SairaBold" FontSize="16"
+                               TextColor="{StaticResource TextPrimary}" />
+                    </Grid>
+                    <Grid Grid.Row="4" ColumnDefinitions="*,Auto">
+                        <Label Grid.Column="0" Text="Lifetime Odometer"
+                               TextColor="{StaticResource TextSecondary}" FontSize="13" />
+                        <Label Grid.Column="1" Text="{Binding LifetimeOdometer}"
+                               FontFamily="SairaBold" FontSize="16"
+                               TextColor="{StaticResource OWCEPrimary}" />
+                    </Grid>
+                </Grid>
+            </Border>
+        </VerticalStackLayout>
+    </ScrollView>
 </ContentPage>

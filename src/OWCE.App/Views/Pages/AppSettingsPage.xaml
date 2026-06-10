@@ -1,8 +1,66 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:OWCE.ViewModels"
+             x:DataType="vm:AppSettingsViewModel"
              x:Class="OWCE.Views.Pages.AppSettingsPage"
-             Title="AppSettingsPage">
-    <!-- Phase 5: Full UI implementation -->
-    <Label Text="AppSettingsPage — coming in Phase 5" HorizontalOptions="Center" VerticalOptions="Center" />
+             Title="Settings"
+             BackgroundColor="{StaticResource OWCEBackground}">
+    <ScrollView>
+        <VerticalStackLayout Padding="16" Spacing="16">
+            <!-- Speed Unit -->
+            <Border Padding="16,12" BackgroundColor="#0D0D1A"
+                    StrokeShape="RoundRectangle 12" Stroke="#1A1A3E">
+                <Grid ColumnDefinitions="*,Auto">
+                    <VerticalStackLayout Grid.Column="0" Spacing="2">
+                        <Label Text="Speed Unit" TextColor="{StaticResource TextPrimary}" FontSize="16" />
+                        <Label Text="{Binding SpeedUnitDisplay}" TextColor="{StaticResource OWCEPrimary}" FontSize="13" />
+                    </VerticalStackLayout>
+                    <Switch Grid.Column="1"
+                            IsToggled="{Binding IsMetric}"
+                            OnColor="{StaticResource OWCEPrimary}"
+                            ThumbColor="White">
+                        <Switch.Behaviors>
+                            <toolkit:EventToCommandBehavior EventName="Toggled"
+                                Command="{Binding ToggleSpeedUnitCommand}" />
+                        </Switch.Behaviors>
+                    </Switch>
+                </Grid>
+            </Border>
+            <!-- Temperature Unit -->
+            <Border Padding="16,12" BackgroundColor="#0D0D1A"
+                    StrokeShape="RoundRectangle 12" Stroke="#1A1A3E">
+                <Grid ColumnDefinitions="*,Auto">
+                    <VerticalStackLayout Grid.Column="0" Spacing="2">
+                        <Label Text="Temperature Unit" TextColor="{StaticResource TextPrimary}" FontSize="16" />
+                        <Label Text="{Binding TempUnitDisplay}" TextColor="{StaticResource OWCEPrimary}" FontSize="13" />
+                    </VerticalStackLayout>
+                    <Button Text="{Binding TempUnitDisplay}"
+                            Command="{Binding ToggleTempUnitCommand}"
+                            BackgroundColor="{StaticResource OWCEPrimary}"
+                            TextColor="Black"
+                            FontFamily="SairaBold"
+                            FontSize="14"
+                            CornerRadius="8"
+                            Padding="12,6" />
+                </Grid>
+            </Border>
+            <!-- Auto-start recording -->
+            <Border Padding="16,12" BackgroundColor="#0D0D1A"
+                    StrokeShape="RoundRectangle 12" Stroke="#1A1A3E">
+                <Grid ColumnDefinitions="*,Auto">
+                    <VerticalStackLayout Grid.Column="0" Spacing="2">
+                        <Label Text="Auto-Start Ride Recording"
+                               TextColor="{StaticResource TextPrimary}" FontSize="16" />
+                        <Label Text="Automatically record when board connects"
+                               TextColor="{StaticResource TextSecondary}" FontSize="12" />
+                    </VerticalStackLayout>
+                    <Switch Grid.Column="1"
+                            IsToggled="{Binding AutoStartRideRecording}"
+                            OnColor="{StaticResource OWCEPrimary}"
+                            ThumbColor="White" />
+                </Grid>
+            </Border>
+        </VerticalStackLayout>
+    </ScrollView>
 </ContentPage>

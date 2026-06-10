@@ -1,12 +1,16 @@
 using OWCE.ViewModels;
-
 namespace OWCE.Views.Pages;
-
 public partial class RideHistoryPage : ContentPage
 {
-    public RideHistoryPage(RideHistoryViewModel viewModel)
+    public RideHistoryPage(RideHistoryViewModel vm)
     {
         InitializeComponent();
-        BindingContext = viewModel;
+        BindingContext = vm;
+    }
+    protected override void OnAppearing()
+    {
+        base.OnAppearing();
+        if (BindingContext is RideHistoryViewModel vm)
+            vm.LoadRidesCommand.Execute(null);
     }
 }

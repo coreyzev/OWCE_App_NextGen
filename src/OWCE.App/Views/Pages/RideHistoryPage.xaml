@@ -1,8 +1,54 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:OWCE.ViewModels"
+             x:DataType="vm:RideHistoryViewModel"
              x:Class="OWCE.Views.Pages.RideHistoryPage"
-             Title="RideHistoryPage">
-    <!-- Phase 5: Full UI implementation -->
-    <Label Text="RideHistoryPage — coming in Phase 5" HorizontalOptions="Center" VerticalOptions="Center" />
+             Title="Ride History"
+             BackgroundColor="{StaticResource OWCEBackground}">
+    <Grid RowDefinitions="Auto,*">
+        <Border Grid.Row="0" Padding="16,12" Margin="16,12,16,0"
+                BackgroundColor="#0D0D1A" StrokeShape="RoundRectangle 12" Stroke="#1A1A3E">
+            <Grid ColumnDefinitions="*,Auto">
+                <Label Grid.Column="0" Text="All-Time Top Speed"
+                       TextColor="{StaticResource TextSecondary}" FontSize="14" VerticalOptions="Center" />
+                <Label Grid.Column="1" Text="{Binding AllTimeTopSpeedDisplay}"
+                       FontFamily="SairaBold" FontSize="22"
+                       TextColor="{StaticResource BatteryRed}" VerticalOptions="Center" />
+            </Grid>
+        </Border>
+        <CollectionView Grid.Row="1" ItemsSource="{Binding Rides}" Margin="16,8,16,16"
+                        EmptyView="No rides recorded yet. Connect your board and tap Start Ride.">
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="vm:RideItemViewModel">
+                    <Border Margin="0,4" Padding="16,12" BackgroundColor="#0D0D1A"
+                            StrokeShape="RoundRectangle 12" Stroke="#1A1A3E">
+                        <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="4">
+                            <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+                                <Label Grid.Column="0" Text="{Binding DateDisplay}"
+                                       FontFamily="SairaBold" FontSize="15"
+                                       TextColor="{StaticResource TextPrimary}" />
+                                <Label Grid.Column="1" Text="{Binding BoardTypeDisplay}"
+                                       FontSize="12" TextColor="{StaticResource OWCEAccent}" />
+                            </Grid>
+                            <Grid Grid.Row="1" ColumnDefinitions="*,*">
+                                <Label Grid.Column="0" Text="{Binding DurationDisplay}"
+                                       FontSize="13" TextColor="{StaticResource TextSecondary}" />
+                                <Label Grid.Column="1" Text="{Binding DistanceDisplay}"
+                                       FontSize="13" TextColor="{StaticResource TextSecondary}" />
+                            </Grid>
+                            <Grid Grid.Row="2" ColumnDefinitions="*,*">
+                                <Label Grid.Column="0"
+                                       Text="{Binding TopSpeedDisplay, StringFormat='Top: {0}'}"
+                                       FontSize="13" TextColor="{StaticResource BatteryRed}" />
+                                <Label Grid.Column="1"
+                                       Text="{Binding AvgSpeedDisplay, StringFormat='Avg: {0}'}"
+                                       FontSize="13" TextColor="{StaticResource OWCEPrimary}" />
+                            </Grid>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+    </Grid>
 </ContentPage>
